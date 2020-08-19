@@ -1,10 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "llist.h"
-#include "priorityq.h"
+#include "ll.h"
+#include "pq.h"
 
 
-REACTION *reaction_make(INDEX number)
+REACTION *reaction_make(UINT number)
 {
 	REACTION *new = malloc(sizeof(REACTION));
 	new->affects = NULL;
@@ -29,13 +29,13 @@ paired with a call to pq_free
  */
 PQ *pq_make()
 {
-	uint32_t m = HEAPINITSIZE;
+	UINT m = HEAPINITSIZE;
 	PQ *pq = malloc(sizeof(PQ));
 	pq->heap = malloc(sizeof(REACTION *) * m);
 	pq->arraysize = m;
 	pq->size = 0;
 
-	uint32_t i;
+	UINT i;
 	for(i = 0; i < m; i++)
 		pq->heap[i] = NULL;
 

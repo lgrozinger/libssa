@@ -3,17 +3,18 @@
 
 #include <stdint.h>
 
-typedef unsigned int INDEX;
-typedef unsigned int COUNT;
+typedef unsigned int UINT;
 
-void ssa_printstate(double, COUNT*, INDEX);
+UINT ssa_nCr(UINT, UINT);
+
+void ssa_printstate(double, UINT*, UINT);
 
 /* mutate `x`, the vector of molecule counts, according to `v`, the
 stoichiometry vector of the reaction to be performed. */
-void ssa_doreaction(INDEX *r, INDEX *p, COUNT *x, INDEX n);
+void ssa_doreaction(UINT *r, UINT *p, UINT *x, UINT n);
 
 /* compute the number of ways the reactants in `r` can combine, based
 on their counts in `x` */
-COUNT ssa_h(INDEX *r, COUNT *x, INDEX n);
+UINT ssa_h(UINT *r, UINT *x, UINT n);
 
 #endif

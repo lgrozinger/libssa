@@ -4,10 +4,25 @@
 #include "ssa.h"
 
 
-void ssa_printstate(double t, COUNT *x, INDEX n)
+UINT ssa_nCr(UINT n, UINT r)
+{
+        if (r > n)
+                return 0;
+        
+        r = r < n - r ? r : n - r;
+        UINT i;
+        UINT result = 1;
+        for (i = 1; i <= r; i++)
+                result = result / i * (n + 1 - i) + result % i * (n + 1 - i) / i;
+
+        return result;
+}
+
+
+void ssa_printstate(double t, UINT *x, UINT n)
 {
 	printf("%f", t);
-	INDEX i;
+	UINT i;
 	for(i = 0; i < n; i++)
 		printf(" %d", x[i]);
 	printf("\n");
@@ -15,9 +30,9 @@ void ssa_printstate(double t, COUNT *x, INDEX n)
 
 /* mutate `x`, the vector of molecule counts, according to `v`, the
 stoichiometry vector of the reaction to be performed. */
-void ssa_doreaction(INDEX *r, INDEX *p, COUNT *x, INDEX n)
+void ssa_doreaction(UINT *r, UINT *p, UINT *x, UINT n)
 {
-	INDEX i;
+	UINT i;
 	for (i = 0; i < n; i++)
 		x[i] = x[i] + p[i] - r[i];
 }
@@ -25,10 +40,10 @@ void ssa_doreaction(INDEX *r, INDEX *p, COUNT *x, INDEX n)
 
 /* compute the number of ways the reactants in `r` can combine, based
 on their counts in `x` */
-COUNT ssa_h(INDEX *r, COUNT *x, INDEX n)
+UINT ssa_h(UINT *r, UINT *x, UINT n)
 {
-	COUNT c = 1;
-	INDEX i, j;
+	UINT c = 1;
+	UINT i, j;
 	for(i = 0; i < n; i++)
 		for(j = 0; j < r[i]; j++)
 			c *= x[i] - j;

@@ -1,10 +1,10 @@
 CC=gcc
-CFLAGS=-Wall -g -fPIC -I. -Ilib/include
+CFLAGS=-Wall -g -fPIC -I. -Iinclude
 LDFLAGS=-lm -lgsl -lgslcblas
-UNITS = graph ll pq dm nrm ssa
+UNITS = dg ll pq dm nrm ssa
 HEADERS = $(patsubst %, include/%.h, $(UNITS))
 OBJS = $(patsubst %, build/%.o, $(UNITS)) 
-VPATH = src/ include/
+VPATH = src/
 PREFIX = /usr/local/lib
 
 
@@ -21,9 +21,11 @@ install : build
 .PHONY : test
 test :
 	$(CC) $(CFLAGS) -o check_ll test/check_ll.c src/ll.c -lcheck -lm -lrt -lpthread -lsubunit
-	$(CC) $(CFLAGS) -o check_pq test/check_pq.c src/pq.c src/ll.c -lcheck -lm -lrt -lpthread -lsubunit	
+	$(CC) $(CFLAGS) -o check_pq test/check_pq.c src/pq.c src/ll.c -lcheck -lm -lrt -lpthread -lsubunit
+	$(CC) $(CFLAGS) -o check_ssa test/check_ssa.c src/ssa.c -lcheck -lm -lrt -lpthread -lsubunit
 	./check_ll
 	./check_pq
+	./check_ssa
 
 .PHONY : clean
 clean :

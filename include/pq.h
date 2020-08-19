@@ -11,7 +11,7 @@
 
 #include <stdint.h>
 
-#include "llist.h"
+#include "ll.h"
 #include "ssa.h"
 
 
@@ -26,7 +26,7 @@
    reaction, and the index of the reaction. */
 typedef struct reaction{
 	double tau;
-        INDEX number;
+        UINT number;
         int32_t heappos;
 	LLIST *affects;
         LLIST *creates;
@@ -36,14 +36,14 @@ typedef struct reaction{
 
 typedef struct priorityqueue{
 	REACTION **heap;
-	uint32_t arraysize;
-	uint32_t size;
+	UINT arraysize;
+	UINT size;
 } PQ;
 
 
 PQ *pq_make();
 void pq_free(PQ*);
-REACTION *reaction_make(INDEX number);
+REACTION *reaction_make(UINT number);
 void reaction_free(REACTION*);
 
 /* attributes */

@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "priorityq.h"
+#include "pq.h"
 
 
 START_TEST(check_heapsort)

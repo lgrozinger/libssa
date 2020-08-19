@@ -3,33 +3,33 @@
 
 #include <stdlib.h>
 #include "ssa.h"
-#include "priorityq.h"
+#include "pq.h"
 
 
 typedef struct system {
         PQ *pq;
-        INDEX **R;
-        INDEX **P;
-        INDEX **creates;
-        INDEX **destroys;
-        INDEX n;
-        INDEX m;
-        COUNT *x;
-        COUNT *steps;
+        UINT **R;
+        UINT **P;
+        UINT **creates;
+        UINT **destroys;
+        UINT n;
+        UINT m;
+        UINT *x;
+        UINT *steps;
         double *k;
         double *propensities;
 } SYSTEM;
 
 
-void ssa_nrm(INDEX **R,
-	     INDEX **P,
-	     INDEX n,
-	     INDEX m,
+void ssa_nrm(UINT **R,
+	     UINT **P,
+	     UINT n,
+	     UINT m,
 	     double *k,
-	     COUNT *x,
-	     COUNT *steps,
-             INDEX **creates,
-             INDEX **destroys,
+	     UINT *x,
+	     UINT *steps,
+             UINT **creates,
+             UINT **destroys,
 	     double T);
 
 #endif

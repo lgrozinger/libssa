@@ -10,12 +10,12 @@
 #endif
 
 
-void ssa_dm(INDEX **R,
-	    INDEX **P,
-	    INDEX n,
-	    INDEX m,
+void ssa_dm(UINT **R,
+	    UINT **P,
+	    UINT n,
+	    UINT m,
 	    double *k,
-	    COUNT *x,
+	    UINT *x,
 	    double T);
 
 #endif

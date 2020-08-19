@@ -11,8 +11,8 @@
 
 #include "ssa.h"
 #include "nrm.h"
-#include "priorityq.h"
-#include "depgraph.h"
+#include "pq.h"
+#include "dg.h"
 
 
 const gsl_rng_type *SSARNGT;
@@ -67,7 +67,7 @@ REACTION **setup_reactions(SYSTEM *s)
 	REACTION **reactions = malloc(sizeof(REACTION*) * s->m);
 	char **adjmat = adjacencymatrix(s->R, s->P, s->n, s->m);
 	
-	INDEX i, j;
+	UINT i, j;
 	for (i = 0; i < s->m; i++) {
 		REACTION *reaction = reaction_make(i);
 		reactions[i] = reaction;
@@ -98,7 +98,7 @@ REACTION **setup_reactions(SYSTEM *s)
 }
 
 
-void ssa_nrm(INDEX **R, INDEX **P, INDEX n, INDEX m, double *k, COUNT *x, COUNT *steps, INDEX **creates, INDEX **destroys, double T)
+void ssa_nrm(UINT **R, UINT **P, UINT n, UINT m, double *k, UINT *x, UINT *steps, UINT **creates, UINT **destroys, double T)
 {
 	gsl_rng_env_setup();
 	SSARNGT = gsl_rng_default;
@@ -123,7 +123,7 @@ void ssa_nrm(INDEX **R, INDEX **P, INDEX n, INDEX m, double *k, COUNT *x, COUNT 
         s->k = k;
         s->propensities = propensities;
 	
-	INDEX i;
+	UINT i;
 	for (i = 0; i < m; i++) {
 		REACTION *r = reactions[i];
 		propensities[i] = ssa_h(R[i], x, n) * k[i];

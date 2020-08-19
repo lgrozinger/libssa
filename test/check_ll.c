@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "llist.h"
+#include "ll.h"
 
 
 START_TEST(check_push)
