@@ -1,4 +1,4 @@
-/* Implementation for Gillespie's direct method */
+/* Implementation of Gillespie's direct method */
 
 #include <math.h>
 #include <stdint.h>
@@ -8,41 +8,52 @@
 #include <gsl/gsl_randist.h>
 
 #include "ssa.h"
-#include "dm.h"
 
 
-const gsl_rng_type *SSARNGT;
-gsl_rng *SSARNG;
+static const gsl_rng_type *SSARNGT;
+static gsl_rng *SSARNG;
+
+/* the number of reactions in the system */
+static UINT M;
+/* the number of species in the system */
+static UINT N;
+/* the current propensities of the reactions */
+static double *PROPS;
+/* the rate constants of the reactions */
+static double *RATES;
+/* the simulation time */
+static double TIME;
+/* the reactant matrix of the system */
+static UINT **REACTS;
+/* the product matrix of the system */
+static UINT **PRODS;
+/* the current state of the system */
+static UINT *X;
 
 
-UINT nextreaction(double *propensities, UINT m)
+static UINT nextreaction()
 {
-	double r1 = gsl_ran_flat(SSARNG, 0.0, 1.0) * propensities[m - 1];
+	double r1 = gsl_ran_flat(SSARNG, 0.0, 1.0) * PROPS[M - 1];
 	UINT i = 0;
-	for(i = 0; i < m; i++)
-		if(r1 <= propensities[i])
+	for(i = 0; i < M; i++)
+		if(r1 <= PROPS[i])
 			return i;
 	return -1;
 }
 
 
-/* 
-Perform one step of the Gillespie direct method, selecting a
-reaction to perform and altering molecule counts and time
-accordingly.
-*/
-void ssa_dmstep(UINT n, UINT m, double *propensities, UINT **R, UINT **P, double *k, UINT *x, double *t)
+static void step()
 {
-	propensities[0] = ssa_h(R[0], x, n) * k[0];
+	PROPS[0] = h(REACTS[0], X, N) * RATES[0];
 	UINT i;
-	for (i = 1; i < m; i++)
-		propensities[i] = ssa_h(R[i], x, n) * k[i] + propensities[i - 1];
+	for (i = 1; i < M; i++)
+		PROPS[i] = h(REACTS[i], X, N) * RATES[i] + PROPS[i - 1];
 
 
-	if (propensities[m - 1] > 0.0) {
-		*t += gsl_ran_exponential(SSARNG, 1 / propensities[m - 1]);
-		UINT next = nextreaction(propensities, m);
-		ssa_doreaction(R[next], P[next], x, n);
+	if (PROPS[M - 1] > 0.0) {
+		TIME += gsl_ran_exponential(SSARNG, 1 / PROPS[M - 1]);
+		UINT next = nextreaction();
+		doreaction(REACTS[next], PRODS[next], X, N);
 	}
 }
 
@@ -54,13 +65,23 @@ void ssa_dm(UINT **R, UINT **P, UINT n, UINT m, double *k, UINT *x, double T)
 	SSARNG = gsl_rng_alloc(SSARNGT);
 	gsl_rng_set(SSARNG, time(NULL));
 
-        double t = 0.0;
-        double *propensities = malloc(sizeof(double) * m);
+        REACTS = R;
+        PRODS = P;
+
+        N = n;
+        M = m;
+        RATES = k;
+        X = x;
+        TIME = 0.0;
+        
+        PROPS = malloc(sizeof(double) * M);
+        printstate(TIME, X, N);
 	
 	do {
-		ssa_dmstep(n, m, propensities, R, P, k, x, &t);
-		ssa_printstate(t, x, n);
-	} while(t < T && propensities[m - 1] > 0.0);
+		step();
+		printstate(TIME, X, N);
+	} while(TIME < T && PROPS[M - 1] > 0.0);
 
-	free(propensities);
+	free(PROPS);
+        gsl_rng_free(SSARNG);
 }

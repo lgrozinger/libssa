@@ -1,8 +1,7 @@
 CC=gcc
-CFLAGS=-Wall -g -fPIC -I. -Iinclude
+CFLAGS=-Wall -g -fPIC -O2 -I. -Iinclude
 LDFLAGS=-lm -lgsl -lgslcblas
-UNITS = dg ll pq dm nrm ssa
-HEADERS = $(patsubst %, include/%.h, $(UNITS))
+UNITS = dg ll pq heap dm dmd nrm nrmd ssa
 OBJS = $(patsubst %, build/%.o, $(UNITS)) 
 VPATH = src/
 PREFIX = /usr/local/lib
@@ -20,14 +19,17 @@ install : build
 
 .PHONY : test
 test :
-	$(CC) $(CFLAGS) -o check_ll test/check_ll.c src/ll.c -lcheck -lm -lrt -lpthread -lsubunit
-	$(CC) $(CFLAGS) -o check_pq test/check_pq.c src/pq.c src/ll.c -lcheck -lm -lrt -lpthread -lsubunit
-	$(CC) $(CFLAGS) -o check_ssa test/check_ssa.c src/ssa.c -lcheck -lm -lrt -lpthread -lsubunit
-	./check_ll
-	./check_pq
-	./check_ssa
+	$(CC) $(CFLAGS) -o build/check_ll test/check_ll.c src/ll.c -lcheck -lm -lrt -lpthread -lsubunit
+	$(CC) $(CFLAGS) -o build/check_pq test/check_pq.c src/pq.c src/ll.c -lcheck -lm -lrt -lpthread -lsubunit
+	$(CC) $(CFLAGS) -o build/check_ssa test/check_ssa.c src/ssa.c -lcheck -lm -lrt -lpthread -lsubunit
+	$(CC) $(CFLAGS) -o build/check_heap test/check_heap.c src/heap.c -lcheck -lm -lrt -lpthread -lsubunit	
+	./build/check_ll
+	./build/check_pq
+	./build/check_ssa
+	./build/check_heap
 
 .PHONY : clean
 clean :
 	-rm -r -f build/*.o
+	-rm -r -f build/check_ll build/check_heap build/check_pq build/check_ssa build/check_heap
 	-rm -f libssa.o

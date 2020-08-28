@@ -10,87 +10,93 @@
 #include <gsl/gsl_randist.h>
 
 #include "ssa.h"
-#include "nrm.h"
 #include "pq.h"
 #include "dg.h"
 
 
-const gsl_rng_type *SSARNGT;
-gsl_rng *SSARNG;
+static const gsl_rng_type *SSARNGT;
+static gsl_rng *SSARNG;
+
+/* the number of reactions in the system */
+static UINT M;
+/* the number of species in the system */
+static UINT N;
+/* the current propensities of the reactions */
+static double *PROPS;
+/* the rate constants of the reactions */
+static double *RATES;
+/* the simulation time */
+static double TIME;
+/* the reactant matrix of the system */
+static UINT **REACTS;
+/* the product matrix of the system */
+static UINT **PRODS;
+/* the current state of the system */
+static UINT *X;
+/* priority queue for the reaction times */
+static PQ *Q;
 
 
-void update_reaction(REACTION *r, SYSTEM *s, double t)
+static void update_reaction(REACTION *r)
 {
-	double newp = ssa_h(s->R[r->number], s->x, s->n) * s->k[r->number];
-	double oldp = s->propensities[r->number];
+	double newp = h(REACTS[r->number], X, N) * RATES[r->number];
+	double oldp = PROPS[r->number];
 
 	if (newp > 0.0) {
 		if (oldp > 0.0) {
-			pq_update(s->pq, r, (oldp / newp) * (r->tau - t) + t);
+			pq_update(Q, r, (oldp / newp) * (r->tau - TIME) + TIME);
 		} else {
-			r->tau = gsl_ran_gamma(SSARNG, s->steps[r->number], 1 / newp) + t;
-			pq_insert(s->pq, r);
+			r->tau = gsl_ran_exponential(SSARNG, 1 / newp) + TIME;
+			pq_insert(Q, r);
 		}
 	} else if (oldp > 0.0) {
-		pq_delete(s->pq, r);
+		pq_delete(Q, r);
 	}
 
-	s->propensities[r->number] = newp;
+	PROPS[r->number] = newp;
 }
 
 
-double ssa_nrmstep(SYSTEM *s)
+static void step()
 {
-	REACTION *r = pq_min(s->pq);
-        ssa_doreaction(s->R[r->number], s->P[r->number], s->x, s->n);
-	double t = r->tau;
+	REACTION *r = pq_min(Q);
+        doreaction(REACTS[r->number], PRODS[r->number], X, N);
+	TIME = r->tau;
 	
-	s->propensities[r->number] = ssa_h(s->R[r->number], s->x, s->n) * s->k[r->number];
-	if (s->propensities[r->number] > 0.0)
-		pq_update(s->pq, r, gsl_ran_gamma(SSARNG, s->steps[r->number], 1 / s->propensities[r->number]) + t);
+	PROPS[r->number] = h(REACTS[r->number], X, N) * RATES[r->number];
+	if (PROPS[r->number] > 0.0)
+		pq_update(Q, r, gsl_ran_exponential(SSARNG, 1 / PROPS[r->number]) + TIME);
 	else
-		pq_delete(s->pq, r);
+		pq_delete(Q, r);
 	
 	LLIST *head = r->affects;
 	while (head != NULL) {
 		REACTION *update = (REACTION *) head->data;
-		update_reaction(update, s, t);
+		update_reaction(update);
 		head = head->next;
 	}
-
-	return t;
 }
 
 
-REACTION **setup_reactions(SYSTEM *s)
+static REACTION **setup_reactions()
 {
-	REACTION **reactions = malloc(sizeof(REACTION*) * s->m);
-	char **adjmat = adjacencymatrix(s->R, s->P, s->n, s->m);
+	REACTION **reactions = malloc(sizeof(REACTION*) * M);
+	char **adjmat = adjacencymatrix(REACTS, PRODS, N, M);
 	
 	UINT i, j;
-	for (i = 0; i < s->m; i++) {
+	for (i = 0; i < M; i++) {
 		REACTION *reaction = reaction_make(i);
 		reactions[i] = reaction;
 	}
 	
-	for (i = 0; i < s->m; i++) {
+	for (i = 0; i < M; i++) {
 		REACTION *r = reactions[i];
-		for (j = 0; j < s->m; j++)
+		for (j = 0; j < M; j++)
 			if (i != j && adjmat[i][j] != 0)
 				r->affects = llist_push(r->affects, reactions[j]);
 	}
 
-        for (i = 0; i < s->m; i++) {
-		REACTION *r = reactions[i];
-		for (j = 0; j < s->m; j++) {
-			if (s->creates[i][j] != 0)
-				r->creates = llist_push(r->creates, reactions[j]);
-                        if (s->destroys[i][j] != 0)
-                                r->destroys = llist_push(r->destroys, reactions[j]);
-                }
-	}
-
-	for (i = 0; i < s->m; i++)
+        for (i = 0; i < M; i++)
 		free(adjmat[i]);
 	
 	free(adjmat);
@@ -98,46 +104,44 @@ REACTION **setup_reactions(SYSTEM *s)
 }
 
 
-void ssa_nrm(UINT **R, UINT **P, UINT n, UINT m, double *k, UINT *x, UINT *steps, UINT **creates, UINT **destroys, double T)
+void ssa_nrm(UINT **R, UINT **P, UINT n, UINT m, double *k, UINT *x, double T)
 {
 	gsl_rng_env_setup();
 	SSARNGT = gsl_rng_default;
 	SSARNG = gsl_rng_alloc(SSARNGT);
 	gsl_rng_set(SSARNG, time(NULL));
+        
+        REACTS = R;
+        PRODS = P;
 
-        SYSTEM *s = malloc(sizeof(SYSTEM));
-	s->m = m;
-        s->n = n;
-        s->R = R;
-        s->P = P;
-        s->creates = creates;
-        s->destroys = destroys;
+        N = n;
+        M = m;
+        RATES = k;
+        X = x;
+        TIME = 0.0;
+        
+        PROPS = malloc(sizeof(double) * M);
+        Q = pq_make();
 
-	REACTION **reactions = setup_reactions(s);
-	double *propensities = malloc(sizeof(double) * m);
-	PQ *pq = pq_make();
-
-        s->pq = pq;
-        s->x = x;
-        s->steps = steps;
-        s->k = k;
-        s->propensities = propensities;
+	REACTION **reactions = setup_reactions();
 	
 	UINT i;
-	for (i = 0; i < m; i++) {
+	for (i = 0; i < M; i++) {
 		REACTION *r = reactions[i];
-		propensities[i] = ssa_h(R[i], x, n) * k[i];
-		if (propensities[i] > 0.0) {
-			r->tau = gsl_ran_gamma(SSARNG, steps[i], 1 / propensities[i]);
-			pq_insert(pq, r);
+		PROPS[i] = h(REACTS[i], X, N) * RATES[i];
+		if (PROPS[i] > 0.0) {
+			r->tau = gsl_ran_exponential(SSARNG, 1 / PROPS[i]);
+			pq_insert(Q, r);
 		}
 	}
 
-	ssa_printstate(0.0, x, n);
+	printstate(TIME, X, N);
 	
-	while(!pq_isempty(pq) && pq_min(pq)->tau < T)
-		ssa_printstate(ssa_nrmstep(s), x, n);
+	while(!pq_isempty(Q) && pq_min(Q)->tau < T) {
+                step();
+		printstate(TIME, X , N);
+        }
 
-	pq_free(pq);
+	pq_free(Q);
 	gsl_rng_free(SSARNG);
 }

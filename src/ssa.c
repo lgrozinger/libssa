@@ -4,7 +4,7 @@
 #include "ssa.h"
 
 
-UINT ssa_nCr(UINT n, UINT r)
+UINT nCr(UINT n, UINT r)
 {
         if (r > n)
                 return 0;
@@ -18,8 +18,17 @@ UINT ssa_nCr(UINT n, UINT r)
         return result;
 }
 
+UINT h(UINT *r, UINT *x, UINT n)
+{
+        UINT result = 1;
+        UINT i;
+        for (i = 0; i < n; i++)
+                result *= nCr(x[i], r[i]);
+        return result;
+}
 
-void ssa_printstate(double t, UINT *x, UINT n)
+
+void printstate(double t, UINT *x, UINT n)
 {
 	printf("%f", t);
 	UINT i;
@@ -28,25 +37,11 @@ void ssa_printstate(double t, UINT *x, UINT n)
 	printf("\n");
 }
 
-/* mutate `x`, the vector of molecule counts, according to `v`, the
-stoichiometry vector of the reaction to be performed. */
-void ssa_doreaction(UINT *r, UINT *p, UINT *x, UINT n)
+
+void doreaction(UINT *r, UINT *p, UINT *x, UINT n)
 {
 	UINT i;
 	for (i = 0; i < n; i++)
 		x[i] = x[i] + p[i] - r[i];
-}
-
-
-/* compute the number of ways the reactants in `r` can combine, based
-on their counts in `x` */
-UINT ssa_h(UINT *r, UINT *x, UINT n)
-{
-	UINT c = 1;
-	UINT i, j;
-	for(i = 0; i < n; i++)
-		for(j = 0; j < r[i]; j++)
-			c *= x[i] - j;
-	return c;
 }
 

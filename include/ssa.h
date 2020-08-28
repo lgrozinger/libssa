@@ -5,16 +5,32 @@
 
 typedef unsigned int UINT;
 
-UINT ssa_nCr(UINT, UINT);
+/* compute the binomial coefficient (n, r) */
+UINT nCr(UINT n, UINT r);
+/* compute number of ways reactants can combine, given molecule counts x */
+UINT h(UINT *r, UINT *x, UINT n);
+/* print the current state (x at time t) of the system with n species */
+void printstate(double t, UINT* x, UINT n);
+/* update the molecule counts, x, according to the stoichiometry r and p */
+void doreaction(UINT *r, UINT *p, UINT *x, UINT n);
 
-void ssa_printstate(double, UINT*, UINT);
 
-/* mutate `x`, the vector of molecule counts, according to `v`, the
-stoichiometry vector of the reaction to be performed. */
-void ssa_doreaction(UINT *r, UINT *p, UINT *x, UINT n);
+/* simulate the system defined by R and P with rates k and initial
+state x, until time T, using Gillespie's direct method */
+void ssa_dm(UINT **R, UINT **P, UINT n, UINT m, double *k, UINT *x, double T);
 
-/* compute the number of ways the reactants in `r` can combine, based
-on their counts in `x` */
-UINT ssa_h(UINT *r, UINT *x, UINT n);
+/* simulate the system defined by R and P with rates k and initial
+state x, until time T, using Gillespie's direct method */
+void ssa_dmd(UINT **R, UINT **P, UINT**I, UINT n, UINT m, double *k, UINT *x, double T);
+
+/* simulate the system defined by R and P with rates k and initial
+state x, until time T, using Gibson and Bruck's next reaction method */
+void ssa_nrm(UINT **R, UINT **P, UINT n, UINT m, double *k, UINT *x, double T);
+
+/* simulate the system defined by R and P with rates k and initial
+state x, until time T, using Gibson and Bruck's next reaction method
+with the addition of a delayed reaction stack */
+void ssa_nrmd(UINT **R, UINT **P, UINT **I, UINT n, UINT m, double *k, UINT *steps, UINT *x, double T);
+
 
 #endif
