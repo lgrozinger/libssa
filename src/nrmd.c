@@ -1,4 +1,4 @@
-/* Implementation for next reaction method */
+/* Implementation for next reaction method with delay stack */
 
 #include <math.h>
 #include <stdint.h>
@@ -26,16 +26,22 @@ static UINT N;
 static double *PROPS;
 /* the rate constants of the reactions */
 static double *RATES;
+/* the delay times of all the reactions */
+static UINT *STEPS;
 /* the simulation time */
 static double TIME;
 /* the reactant matrix of the system */
 static UINT **REACTS;
 /* the product matrix of the system */
 static UINT **PRODS;
+/* the matrix initiations of delayed reactions */
+static UINT **INITS;
 /* the current state of the system */
 static UINT *X;
 /* priority queue for the reaction times */
 static PQ *Q;
+/* priority queue for delayed reactions */
+static PQ *STACK;
 
 
 static void update_reaction(REACTION *r)
@@ -45,7 +51,6 @@ static void update_reaction(REACTION *r)
 
 	if (newp > 0.0) {
 		if (oldp > 0.0) {
-                        REACTION *reaction = heap
 			pq_update(Q, r, (oldp / newp) * (r->tau - TIME) + TIME);
 		} else {
 			r->tau = gsl_ran_exponential(SSARNG, 1 / newp) + TIME;
@@ -62,14 +67,21 @@ static void update_reaction(REACTION *r)
 static void step()
 {
 	REACTION *r = pq_min(Q);
+        if (!pq_isempty(STACK) && pq_min(STACK)->tau < r->tau)
+                r = pq_min(STACK);
+        
         doreaction(REACTS[r->number], PRODS[r->number], X, N);
-	TIME = r->tau;
-	
-	PROPS[r->number] = h(REACTS[r->number], X, N) * RATES[r->number];
-	if (PROPS[r->number] > 0.0)
-		pq_update(Q, r, gsl_ran_exponential(SSARNG, 1 / PROPS[r->number]) + TIME);
-	else
-		pq_delete(Q, r);
+        TIME = r->tau;
+
+        if (STEPS[r->number] > 1)
+                pq_delete(Q, r);
+        else {
+                PROPS[r->number] = h(REACTS[r->number], X, N) * RATES[r->number];
+                if (PROPS[r->number] > 0.0)
+                        pq_update(Q, r, gsl_ran_exponential(SSARNG, 1 / PROPS[r->number]) + TIME);
+                else
+                        pq_delete(Q, r);
+        }
 	
 	LLIST *head = r->affects;
 	while (head != NULL) {
@@ -77,6 +89,15 @@ static void step()
 		update_reaction(update);
 		head = head->next;
 	}
+
+        head = r->creates;
+        while (head != NULL) {
+                REACTION *template = (REACTION *) head->data;
+                REACTION *newone = reaction_make(template->number);
+                newone->tau = gsl_ran_gamma(SSARNG, STEPS[template->number], 1 / RATES[template->number]);
+                newone->affects = template->affects;
+                pq_insert(STACK, newone);
+        }
 }
 
 
@@ -93,10 +114,14 @@ static REACTION **setup_reactions()
 	
 	for (i = 0; i < M; i++) {
 		REACTION *r = reactions[i];
-		for (j = 0; j < M; j++)
+		for (j = 0; j < M; j++) {
 			if (i != j && adjmat[i][j] != 0)
 				r->affects = llist_push(r->affects, reactions[j]);
-	}
+                        if (INITS[i][j] != 0)
+                                r->creates = llist_push(r->creates, reactions[j]);
+                }
+
+        }
 
         for (i = 0; i < M; i++)
 		free(adjmat[i]);
@@ -106,7 +131,7 @@ static REACTION **setup_reactions()
 }
 
 
-void ssa_nrm(UINT **R, UINT **P, UINT n, UINT m, double *k, UINT *x, double T)
+void ssa_nrmd(UINT **R, UINT **P, UINT **I, UINT n, UINT m, double *k, UINT *steps, UINT *x, double T)
 {
 	gsl_rng_env_setup();
 	SSARNGT = gsl_rng_default;
@@ -115,26 +140,33 @@ void ssa_nrm(UINT **R, UINT **P, UINT n, UINT m, double *k, UINT *x, double T)
         
         REACTS = R;
         PRODS = P;
+        INITS = I;
 
         N = n;
         M = m;
         RATES = k;
+        STEPS = steps;
         X = x;
         TIME = 0.0;
         
         PROPS = malloc(sizeof(double) * M);
         Q = pq_make();
+        STACK = pq_make();
 
 	REACTION **reactions = setup_reactions();
 	
 	UINT i;
 	for (i = 0; i < M; i++) {
 		REACTION *r = reactions[i];
-		PROPS[i] = h(REACTS[i], X, N) * RATES[i];
-		if (PROPS[i] > 0.0) {
-			r->tau = gsl_ran_exponential(SSARNG, 1 / PROPS[i]);
-			pq_insert(Q, r);
-		}
+                if (STEPS[i] > 1)
+                        PROPS[i] = h(REACTS[i], X, N) * RATES[i];
+                else
+                        PROPS[i] = 0.0;
+
+                if (PROPS[i] > 0.0) {
+                        r->tau = gsl_ran_exponential(SSARNG, 1 / PROPS[i]);
+                        pq_insert(Q, r);
+                }
 	}
 
 	printstate(TIME, X, N);
